@@ -27,6 +27,11 @@
 (defvar-local wsc-prompt-marker nil)
 (defvar-local wsc-websocket nil)
 
+(defvar websocket-client-extra-headers nil
+  "A list of (header-name . header-value) pairs to send with the websocket handshake.")
+(defvar-local wsc-custom-headers nil
+  "Record the custom headers used when opening a websocket.")
+
 (defsubst wsc-at-prompt-p ()
   "Return t if point is at the prompt."
   (>= (point) wsc-prompt-marker))
@@ -91,7 +96,9 @@ otherwise."
                                         :on-open (lambda (ws) (wsc-on-open ws buf))
                                         :on-message 'wsc-on-message
                                         :on-close 'wsc-on-close
-                                        :on-error 'wsc-on-error))
+                                        :on-error 'wsc-on-error
+                                        :custom-header-alist websocket-client-extra-headers))
+    (setq wsc-custom-headers websocket-client-extra-headers)
     (wsc-init-ws wsc-websocket buf)))
 
 (defvar websocket-client-mode-map
