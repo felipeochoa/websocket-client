@@ -32,6 +32,9 @@
 (defvar-local wsc-custom-headers nil
   "Record the custom headers used when opening a websocket.")
 
+(defvar wsc-ping-interval 15
+  "If non-nil, the client will ping the server every WSC-PING-INTERVAL seconds.")
+
 (defsubst wsc-at-prompt-p ()
   "Return t if point is at the prompt."
   (>= (point) wsc-prompt-marker))
@@ -73,6 +76,15 @@ otherwise."
 (defun wsc-send-input (string)
   "Send STRING to the server."
   (websocket-send-text wsc-websocket string))
+
+(defun wsc-send-ping (&optional buffer)
+  "Send a ping message to the server.
+BUFFER is the process buffer of the websocket to ping."
+  (with-current-buffer (or buffer (current-buffer))
+   (condition-case nil
+      (websocket-send wsc-websocket (make-websocket-frame :opcode 'ping
+                                                          :completep t))
+    (websocket-closed nil))))
 
 (defun websocket-client-open (url)
   "Open an interactive buffer to communicate with a websocket at URL."
@@ -120,7 +132,9 @@ BUF is the websocket-client buffer for WS."
   (wsc-init-ws ws buf)
   (wsc-insert-output ws (format "\n[%s - connected to %s]"
                                 (format-time-string "%Y-%m-%d %H:%M:%S")
-                                (websocket-url ws))))
+                                (websocket-url ws)))
+  (setq wsc-ping-timer (run-at-time wsc-ping-interval wsc-ping-interval
+                                    'wsc-send-ping (current-buffer))))
 
 (defun wsc-on-message (ws frame)
   "Called when WS receives FRAME."
@@ -131,7 +145,11 @@ BUF is the websocket-client buffer for WS."
   "Called when WS is closed by peer."
   (wsc-insert-output ws (format "\n[%s - %s closed connection]"
                                 (format-time-string "%Y-%m-%d %H:%M:%S")
-                                (websocket-url ws))))
+                                (websocket-url ws)))
+  (with-current-buffer (process-buffer (websocket-conn ws))
+    (when wsc-ping-timer
+      (cancel-timer wsc-ping-timer)
+      (setq wsc-ping-timer nil))))
 
 (defun wsc-on-error (ws type err)
   "Called when WS had a TYPE error ERR."
