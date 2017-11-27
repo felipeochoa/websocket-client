@@ -34,6 +34,8 @@
 
 (defvar wsc-ping-interval 15
   "If non-nil, the client will ping the server every WSC-PING-INTERVAL seconds.")
+(defvar-local wsc-ping-timer nil
+  "The timer object for sending a periodic keepalive ping.")
 
 (defsubst wsc-at-prompt-p ()
   "Return t if point is at the prompt."
